@@ -28,6 +28,7 @@ import openpi.training.misc.roboarena_config as roboarena_config
 import openpi.training.optimizer as _optimizer
 import openpi.training.weight_loaders as weight_loaders
 import openpi.transforms as _transforms
+import openpi.pi07_transforms as pi07_transforms
 
 ModelType: TypeAlias = _model.ModelType
 # Work around a tyro issue with using nnx.filterlib.Filter directly.
@@ -162,6 +163,39 @@ class ModelTransformFactory(GroupFactory):
                     ],
                 )
 
+@dataclasses.dataclass(frozen=True)
+class Pi07ModelTransformFactory(GroupFactory):
+    """Creates model transforms for the π0.7 reimplementation.
+
+    The current implementation uses the public π0.5 architecture and adds
+    π0.7-style rich textual context before prompt tokenization.
+    """
+
+    default_prompt: str | None = None
+
+    def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
+        if model_config.model_type != _model.ModelType.PI05:
+            raise ValueError(
+                "Pi07ModelTransformFactory currently requires a PI05 model config."
+            )
+
+        assert isinstance(model_config, pi0_config.Pi0Config)
+
+        return _transforms.Group(
+            inputs=[
+                _transforms.InjectDefaultPrompt(self.default_prompt),
+                _transforms.ResizeImages(224, 224),
+
+                # π0.7 addition:
+                pi07_transforms.AddPi07Context(),
+
+                _transforms.TokenizePrompt(
+                    _tokenizer.PaligemmaTokenizer(model_config.max_token_len),
+                    discrete_state_input=model_config.discrete_state_input,
+                ),
+                _transforms.PadStatesAndActions(model_config.action_dim),
+            ],
+        )
 
 @dataclasses.dataclass(frozen=True)
 class DataConfigFactory(abc.ABC):
