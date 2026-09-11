@@ -311,7 +311,25 @@ class LeRobotAlohaDataConfig(DataConfigFactory):
             action_sequence_keys=self.action_sequence_keys,
         )
 
+@dataclasses.dataclass(frozen=True)
+class Pi07AlohaDataConfig(LeRobotAlohaDataConfig):
+    """ALOHA data config using π0.7-style rich-context transforms."""
 
+    @override
+    def create(
+        self,
+        assets_dirs: pathlib.Path,
+        model_config: _model.BaseModelConfig,
+    ) -> DataConfig:
+        config = super().create(assets_dirs, model_config)
+
+        return dataclasses.replace(
+            config,
+            model_transforms=Pi07ModelTransformFactory(
+                default_prompt=self.default_prompt,
+            )(model_config),
+        )
+        
 @dataclasses.dataclass(frozen=True)
 class LeRobotLiberoDataConfig(DataConfigFactory):
     """
@@ -607,6 +625,14 @@ _CONFIGS = [
         name="pi05_aloha",
         model=pi0_config.Pi0Config(pi05=True),
         data=LeRobotAlohaDataConfig(
+            assets=AssetsConfig(asset_id="trossen"),
+        ),
+        policy_metadata={"reset_pose": [0, -1.5, 1.5, 0, 0, 0]},
+    ),
+    TrainConfig(
+        name="pi07_context_aloha",
+        model=pi0_config.Pi0Config(pi05=True),
+        data=Pi07AlohaDataConfig(
             assets=AssetsConfig(asset_id="trossen"),
         ),
         policy_metadata={"reset_pose": [0, -1.5, 1.5, 0, 0, 0]},
