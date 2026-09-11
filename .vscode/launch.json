@@ -1,0 +1,34 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug π0 model test - No JIT",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "-s",
+                "-q",
+                "src/openpi/models/model_test.py::test_pi0_model"
+            ],
+            "env": {
+                "JAX_DISABLE_JIT": "1"
+            },
+            "justMyCode": false,
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug TokenizePrompt",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "-s",
+                "-q",
+                "src/openpi/transforms_test.py::test_tokenize_prompt"
+            ],
+            "justMyCode": false,
+            "console": "integratedTerminal"
+        }        
+    ]
+}
