@@ -1,5 +1,7 @@
 # openpi
 
+This branch adds a [paper-based pi0.7 implementation](docs/pi07.md) with Gemma 3, visual history, FAST/flow training, and an asynchronous runtime. Start with its isolated offline smoke test; trained pi0.7 weights and reproduced robot results are not included.
+
 openpi holds open-source models and packages for robotics, published by the [Physical Intelligence team](https://www.physicalintelligence.company/).
 
 Currently, this repo contains three types of models:

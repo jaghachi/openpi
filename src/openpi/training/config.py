@@ -17,6 +17,7 @@ import openpi.models.model as _model
 import openpi.models.pi0_config as pi0_config
 import openpi.models.pi0_fast as pi0_fast
 import openpi.models.tokenizer as _tokenizer
+import openpi.pi07_transforms as pi07_transforms
 import openpi.policies.aloha_policy as aloha_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
@@ -28,7 +29,6 @@ import openpi.training.misc.roboarena_config as roboarena_config
 import openpi.training.optimizer as _optimizer
 import openpi.training.weight_loaders as weight_loaders
 import openpi.transforms as _transforms
-import openpi.pi07_transforms as pi07_transforms
 
 ModelType: TypeAlias = _model.ModelType
 # Work around a tyro issue with using nnx.filterlib.Filter directly.
@@ -165,10 +165,10 @@ class ModelTransformFactory(GroupFactory):
 
 @dataclasses.dataclass(frozen=True)
 class Pi07ModelTransformFactory(GroupFactory):
-    """Creates model transforms for the π0.7 reimplementation.
+    """Creates legacy pi0.5 transforms with pi0.7-style textual conditioning.
 
-    The current implementation uses the public π0.5 architecture and adds
-    π0.7-style rich textual context before prompt tokenization.
+    This compatibility path does not implement the pi0.7 architecture. The
+    separate paper-based model and data path live in ``openpi.pi07``.
     """
 
     default_prompt: str | None = None
@@ -325,11 +325,19 @@ class Pi07AlohaDataConfig(LeRobotAlohaDataConfig):
 
         return dataclasses.replace(
             config,
+            repack_transforms=_transforms.Group(
+                inputs=[pi07_transforms.PreservePi07Context(_transforms.compose(config.repack_transforms.inputs))],
+                outputs=config.repack_transforms.outputs,
+            ),
+            data_transforms=_transforms.Group(
+                inputs=[pi07_transforms.PreservePi07Context(_transforms.compose(config.data_transforms.inputs))],
+                outputs=config.data_transforms.outputs,
+            ),
             model_transforms=Pi07ModelTransformFactory(
                 default_prompt=self.default_prompt,
             )(model_config),
         )
-        
+
 @dataclasses.dataclass(frozen=True)
 class LeRobotLiberoDataConfig(DataConfigFactory):
     """

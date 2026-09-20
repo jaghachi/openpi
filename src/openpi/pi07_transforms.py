@@ -1,85 +1,58 @@
+"""Text-only pi0.7 conditioning adapters for the legacy pi0.5 data pipeline.
+
+These adapters do not change the legacy model architecture. The paper-based
+model implementation lives separately in ``openpi.pi07``.
+"""
+
+from collections.abc import Callable
 import dataclasses
 from typing import Any
 
-import numpy as np
+from openpi.pi07.context import EpisodeMetadata
+from openpi.pi07.context import PromptContext
 
-from openpi import transforms as _transforms
+PI07_CONTEXT_FIELDS = ("prompt", "subtask", "speed", "quality", "mistake", "control_mode", "language_memory")
 
 
-def _scalar(value: Any) -> Any:
-    """Convert numpy scalar-like values to ordinary Python values."""
-    if isinstance(value, np.ndarray) and value.ndim == 0:
-        return value.item()
+@dataclasses.dataclass(frozen=True)
+class PreservePi07Context:
+    """Carry optional context across a transform that reconstructs its dictionary.
 
-    if isinstance(value, np.generic):
-        return value.item()
+    RepackTransform and AlohaInputs discard fields outside their base schemas.
+    Wrapping them only for the pi0.7 context configuration prevents metadata loss
+    without changing those upstream schemas. Deliberately transformed output
+    fields take precedence over the original values; absent metadata stays absent.
+    """
 
-    return value
+    transform: Callable[[dict[str, Any]], dict[str, Any]]
+
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
+        preserved = {name: data[name] for name in PI07_CONTEXT_FIELDS if name in data}
+        return {**preserved, **self.transform(data)}
 
 
 @dataclasses.dataclass(frozen=True)
 class AddPi07Context:
-    """Adds π0.7-style textual context to the task prompt.
+    """Validate and append context before legacy prompt tokenization.
 
-    Expected optional fields:
-        subtask
-        speed
-        quality
-        mistake
-        control_mode
-
-    The original `prompt` is treated as the overall task instruction.
-
-    This transform intentionally runs before TokenizePrompt, so the existing
-    PaliGemma tokenizer handles the resulting rich-context prompt normally.
+    The historical leading task text is retained for pi0.5 checkpoint prompt
+    compatibility. The new paper-based PromptContext API includes ``Task:``.
+    Numeric/bool strings and fractional integer labels are rejected rather than
+    silently coerced; speed is binned into 500-step intervals.
     """
 
-    def __call__(self, data: _transforms.DataDict) -> _transforms.DataDict:
+    def __call__(self, data: dict[str, Any]) -> dict[str, Any]:
         if "prompt" not in data:
             raise ValueError("π0.7 context requires a prompt.")
 
-        task = _scalar(data["prompt"])
-
-        if not isinstance(task, str):
-            raise TypeError(f"Expected prompt to be a string, got {type(task)}.")
-
-        task = task.strip().rstrip(".")
-
-        context_parts: list[str] = [task]
-
-        if "subtask" in data:
-            subtask = _scalar(data["subtask"])
-            context_parts.append(f"Subtask: {str(subtask).strip().rstrip('.')}")
-
-        if "speed" in data:
-            speed = int(_scalar(data["speed"]))
-            context_parts.append(f"Speed: {speed}")
-
-        if "quality" in data:
-            quality = int(_scalar(data["quality"]))
-
-            if not 1 <= quality <= 5:
-                raise ValueError(f"Quality must be in [1, 5], got {quality}.")
-
-            context_parts.append(f"Quality: {quality}")
-
-        if "mistake" in data:
-            mistake = bool(_scalar(data["mistake"]))
-            context_parts.append(f"Mistake: {'true' if mistake else 'false'}")
-
-        if "control_mode" in data:
-            control_mode = str(_scalar(data["control_mode"])).lower()
-
-            if control_mode not in {"joint", "ee"}:
-                raise ValueError(
-                    f"Control mode must be 'joint' or 'ee', got {control_mode!r}."
-                )
-
-            context_parts.append(f"Control Mode: {control_mode}")
-
-        prompt = ". ".join(context_parts) + "."
-
-        return {
-            **data,
-            "prompt": prompt,
-        }
+        context = PromptContext(
+            task=data["prompt"],
+            subtask=data.get("subtask"),
+            metadata=EpisodeMetadata(speed=data.get("speed"), quality=data.get("quality"), mistake=data.get("mistake")),
+            control_mode=data.get("control_mode", "joint"),
+            language_memory=data.get("language_memory", ()),
+        )
+        prompt = context.to_text().removeprefix("Task: ")
+        if "control_mode" not in data:
+            prompt = prompt.removesuffix(" Control Mode: joint.")
+        return {**data, "prompt": prompt}

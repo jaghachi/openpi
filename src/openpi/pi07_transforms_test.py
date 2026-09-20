@@ -3,9 +3,10 @@ import pytest
 
 from openpi import pi07_transforms
 from openpi import transforms as _transforms
-from openpi.models import tokenizer as _tokenizer
 from openpi.models import pi0_config
+from openpi.models import tokenizer as _tokenizer
 from openpi.training import config as _config
+
 
 def test_add_pi07_context():
     transform = pi07_transforms.AddPi07Context()
@@ -16,18 +17,13 @@ def test_add_pi07_context():
             "subtask": "fold the left sleeve",
             "speed": np.asarray(2000),
             "quality": np.asarray(5),
-            "mistake": np.asarray(False),
+            "mistake": np.False_,
             "control_mode": np.asarray("joint"),
         }
     )
 
     assert data["prompt"] == (
-        "fold the shirt. "
-        "Subtask: fold the left sleeve. "
-        "Speed: 2000. "
-        "Quality: 5. "
-        "Mistake: false. "
-        "Control Mode: joint."
+        "fold the shirt. Subtask: fold the left sleeve. Speed: 2000. Quality: 5. Mistake: false. Control Mode: joint."
     )
 
 
@@ -41,10 +37,7 @@ def test_add_pi07_context_allows_missing_optional_metadata():
         }
     )
 
-    assert data["prompt"] == (
-        "pick up the cup. "
-        "Control Mode: ee."
-    )
+    assert data["prompt"] == ("pick up the cup. Control Mode: ee.")
 
 
 def test_add_pi07_context_rejects_bad_quality():
@@ -69,6 +62,7 @@ def test_add_pi07_context_rejects_bad_control_mode():
                 "control_mode": "telepathy",
             }
         )
+
 
 def test_pi07_context_tokenizes_with_pi05_state():
     transform = _transforms.compose(
@@ -96,6 +90,7 @@ def test_pi07_context_tokenizes_with_pi05_state():
     assert data["tokenized_prompt"].shape == (200,)
     assert data["tokenized_prompt_mask"].shape == (200,)
     assert data["tokenized_prompt_mask"].sum() > 0
+
 
 def test_pi07_model_transform_factory():
     model_config = pi0_config.Pi0Config(pi05=True)

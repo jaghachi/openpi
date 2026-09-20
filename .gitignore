@@ -4,6 +4,9 @@ checkpoints/
 data/
 wandb/
 
+# Local paper extraction and smoke artifacts.
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

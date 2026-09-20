@@ -1,0 +1,10 @@
+# Standalone CPU-compatible pi0.7 path; does not install legacy JAX/LeRobot stacks.
+torch==2.7.1
+transformers==4.53.2
+numpy>=1.26,<2
+pillow>=11
+scipy>=1.13
+sentencepiece>=0.2
+safetensors>=0.5
+pytest>=8.3
+ruff>=0.8.6
